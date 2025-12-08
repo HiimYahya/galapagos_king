@@ -4,19 +4,16 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Laudis\Neo4j\ClientBuilder;
 
-// 🔹 Connexion Neo4j
+// Connexion Neo4j
 $neo4j_password = 'esgiesgi';
 $neo4j = ClientBuilder::create()
     ->withDriver('bolt', "bolt://neo4j:$neo4j_password@localhost:7687")
     ->build();
 
-// 🔹 Connexion MongoDB
+// Connexion MongoDB
 $mongo = new MongoDB\Client("mongodb://127.0.0.1:27017");
 $db = $mongo->galapagos;
 
-// -----------------------------
-// Structure de réponse globale
-// -----------------------------
 $response = [
     "warehouse" => null,
     "ports" => [],
@@ -27,9 +24,8 @@ $response = [
     "orders" => []
 ];
 
-// ===================================================
-// ⚓ PORTS (depuis Neo4j)
-// ===================================================
+// PORTS
+
 try {
     $result = $neo4j->run(
         "MATCH (p:Port)
@@ -52,9 +48,8 @@ try {
     $response["neo4j_error_ports"] = $e->getMessage();
 }
 
-// ===================================================
-// 🌊 ROUTES ENTRE PORTS (depuis Neo4j)
-// ===================================================
+// ROUTES ENTRE PORTS
+
 try {
     $routes = $neo4j->run(
         "MATCH (a:Port)-[r:CONNECTED_TO]->(b:Port)
@@ -72,9 +67,8 @@ try {
     $response["neo4j_error_routes"] = $e->getMessage();
 }
 
-// ===================================================
-// 📏 Génération automatique de routes si manquantes
-// ===================================================
+// Génération automatique de routes si manquantes (au cas ou)
+
 if (empty($response["routes"]) && count($response["ports"]) > 1) {
     function distance_km($lat1, $lon1, $lat2, $lon2) {
         $R = 6371; // rayon terrestre (km)
@@ -101,9 +95,9 @@ if (empty($response["routes"]) && count($response["ports"]) > 1) {
     }
 }
 
-// ===================================================
-// 🔐 LOCKERS (depuis Neo4j)
-// ===================================================
+
+// LOCKERS
+
 try {
     $result = $neo4j->run(
         "MATCH (p:Port)-[:HAS_LOCKER]->(l:Locker)
@@ -129,9 +123,8 @@ try {
     $response["neo4j_error_lockers"] = $e->getMessage();
 }
 
-// ===================================================
-// ✈️ HYDRAVIONS (depuis MongoDB)
-// ===================================================
+// HYDRAVIONS
+
 try {
     $cursor = $db->seaplanes->find([]);
     foreach ($cursor as $plane) {
@@ -148,9 +141,9 @@ try {
     $response["mongo_error_seaplanes"] = $e->getMessage();
 }
 
-// ===================================================
-// 📍 POSITIONS (depuis MongoDB)
-// ===================================================
+
+// POSITIONS
+
 try {
     $cursor = $db->positions->find([]);
     foreach ($cursor as $doc) {
@@ -165,18 +158,16 @@ try {
     $response["mongo_error_positions"] = $e->getMessage();
 }
 
-// ===================================================
-// 🏠 ENTREPÔT PRINCIPAL
-// ===================================================
+// ENTREPÔT PRINCIPAL
+
 $response["warehouse"] = [
     "name" => "Entrepôt principal - Puerto Baquerizo Moreno",
     "lat" => -0.9016,
     "lon" => -89.6158
 ];
 
-// ===================================================
-// 📦 COMMANDES (MongoDB)
-// ===================================================
+// COMMANDES
+
 try {
     $cursor = $db->orders->find([]);
     foreach ($cursor as $doc) {
@@ -191,7 +182,6 @@ try {
     $response["mongo_error_orders"] = $e->getMessage();
 }
 
-// ===================================================
-// ✅ Sortie finale JSON
-// ===================================================
+// Sortie en JSON
+
 echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

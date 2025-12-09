@@ -5,7 +5,30 @@
   <title>Carte Galapagos</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
-    #map { height: 100vh; }
+    
+    #map-wrapper {
+      position: relative;
+      height: calc(100vh - 60px);
+      margin: 60px auto 0;
+      width: 90%;
+      max-width: 1400px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    #map {
+      height: 100%;
+      border-radius: 20px;
+    }
+
+    .delivery-planner,
+    .planes-panel,
+    .trajet-result,
+    .orders-panel {
+    color: #000;
+    background-color: white;
+    }
 
     .delivery-planner {
       position: absolute;
@@ -65,7 +88,6 @@
       overflow-y: auto;
     }
 
-    /* 📦 Commandes en cours */
     .orders-panel {
       position: absolute;
       top: 10px;
@@ -86,39 +108,128 @@
       50% { stroke-opacity: 0.5; }
       100% { stroke-opacity: 1; }
     }
+
+    .details-btn {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 10000;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .details-btn:hover {
+      background: #0056b3;
+    }
+
+    body {
+      background-color: #000;
+      color: #fff;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 25px;
+      background-color: #000;
+      border-bottom: 1px solid #333;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+
+    header .logo {
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    header nav a {
+      margin-left: 20px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    header nav a:hover {
+      color: #53daffff;
+    }
+
+    footer {
+      background-color: #000000ff;
+      border-top: 1px solid #ddd;
+      padding: 20px 25px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      color: #ffffffff;
+    }
+
+    footer a {
+        color: #ffffffff;
+        text-decoration: none;
+        margin: 0 10px;
+    }
+
+    footer a:hover {
+        color: #53daffff;
+    }
+
   </style>
 </head>
+
+<header>
+    <div class="logo">MonSite</div>
+    
+    <nav>
+        <a href="#">test</a>
+        <a href="#">test</a>
+        <a href="#">test</a>
+    </nav>
+</header>
+
 <body>
 
-<div id="map"></div>
+<button onclick="window.location.href='details.php'" class="details-btn" style="top:50px;">
+    Détails
+</button>
 
-<div class="delivery-planner">
-  <h4>🚚 Planifier une livraison</h4>
-  <div id="escales-container">
-    <div class="escale">
-      <select class="port-select"></select>
-      <input type="number" class="crate-input" min="1" value="1" style="width:60px;">
-      <button class="remove-stop" title="Supprimer">❌</button>
+<div id="map-wrapper">
+  <div id="map"></div>
+
+  <div class="delivery-planner">
+    <h4>🚚 Planifier une livraison</h4>
+    <div id="escales-container">
+      <div class="escale">
+        <select class="port-select"></select>
+        <input type="number" class="crate-input" min="1" value="1" style="width:60px;">
+        <button class="remove-stop" title="Supprimer">❌</button>
+      </div>
     </div>
+    <button id="add-stop">➕ Ajouter une escale</button>
+    <button id="calculate">📍 Calculer le trajet optimal</button>
   </div>
-  <button id="add-stop">➕ Ajouter une escale</button>
-  <button id="calculate">📍 Calculer le trajet optimal</button>
-</div>
 
-<div id="trajet-info" class="trajet-result" style="display:none;"></div>
-<div id="planes-info" class="planes-panel" style="display:none;"></div>
-<div id="orders-info" class="orders-panel" style="display:block;"></div>
+  <div id="trajet-info" class="trajet-result" style="display:none;"></div>
+  <div id="planes-info" class="planes-panel" style="display:none;"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([-0.9, -90.3], 7);
+const map = L.map('map').setView([0.1, -90.2], 8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let ports = [], routes = [], seaplanes = [], warehouse = null;
 let trajetLayer = null;
 let hydravionMarkers = {};
 
-// 🟢 Chargement initial
+// Chargement initial
 fetch("api.php")
   .then(r => r.json())
   .then(data => {
@@ -132,7 +243,7 @@ fetch("api.php")
     chargerOrders();
   });
 
-// 🗺️ Ports + lockers
+// Ports + lockers
 function afficherCarte(data) {
   const portIcon = L.divIcon({ html: '⚓', iconSize: [24, 24], iconAnchor: [12, 12] });
   const warehouseIcon = L.divIcon({ html: '🏭', iconSize: [28, 28], iconAnchor: [14, 14] });
@@ -169,7 +280,7 @@ function afficherCarte(data) {
   });
 }
 
-// 🛩️ Hydravions
+// Hydravions
 function afficherHydravions(seaplanes) {
   const div = document.getElementById("planes-info");
   div.style.display = "block";
@@ -186,14 +297,12 @@ function afficherHydravions(seaplanes) {
   `;
 }
 
-// 📦 Commandes en cours
+// Commandes en cours
 function chargerOrders() {
   fetch("get_orders.php")
     .then(r => r.json())
     .then(orders => {
-      console.log("📦 Commandes reçues :", orders);
       const div = document.getElementById("orders-info");
-
       if (!orders.length) {
         div.innerHTML = "<h4>📦 Aucune commande en cours</h4>";
         return;
@@ -222,7 +331,7 @@ function chargerOrders() {
 }
 setInterval(chargerOrders, 10000);
 
-// ➕ Ajouter une escale
+// Ajouter une escale
 document.getElementById("add-stop").addEventListener("click", () => {
   const div = document.createElement("div");
   div.classList.add("escale");
@@ -244,7 +353,7 @@ function remplirSelectPorts() {
   });
 }
 
-// 📍 Calcul du trajet optimal
+// Calcul du trajet optimal
 document.getElementById("calculate").addEventListener("click", () => {
   const escales = Array.from(document.querySelectorAll(".escale")).map(e => ({
     portId: e.querySelector(".port-select").value,
@@ -285,12 +394,11 @@ document.getElementById("calculate").addEventListener("click", () => {
     .then(() => chargerOrders());
 });
 
-// 🔴 Trace le trajet
+// Trace le trajet
 function afficherTrajet(itineraire) {
   if (trajetLayer) map.removeLayer(trajetLayer);
   const points = itineraire.map(p => [p.lat, p.lon]);
   trajetLayer = L.polyline(points, { color: "red", weight: 4 }).addTo(map);
-  map.fitBounds(trajetLayer.getBounds(), { padding: [30, 30] });
 }
 
 function afficherResultat(itineraire, portsChoisis, avion, distance, fuel) {
@@ -305,7 +413,7 @@ function afficherResultat(itineraire, portsChoisis, avion, distance, fuel) {
   `;
 }
 
-// 🔄 Calcul itinéraires
+// Calcul itinéraires
 function calculerItineraireOptimise(portsChoisis, routes, start) {
   const chemin = [start];
   const restants = [...portsChoisis];
@@ -341,4 +449,14 @@ function getDistanceEntre(a, b, routes) {
 }
 </script>
 </body>
+
+<footer>
+    <p>2025 Galapagos. ESGI 3AL1. Groupe 6</p>
+    <p>
+        <a href="#">test</a> |
+        <a href="#">test</a> |
+        <a href="#">test</a>
+    </p>
+</footer>
+
 </html>
